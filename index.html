@@ -1,0 +1,159 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>NASA Space Apps: Mission Design Simulator</title>
+<style>
+:root{--bg:#05070f;--bg2:#0b0f19;--cy:#22e5ff;--am:#ffb020;--rd:#ff3b3b;--gr:#2de38f;--tx:#dce6ff;--mu:#7d8bb0;color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;min-height:100vh;color:var(--tx);font:14px/1.45 "Segoe UI",system-ui,-apple-system,sans-serif;background:radial-gradient(900px 500px at 15% -10%,#13204a66,transparent),radial-gradient(800px 500px at 100% 100%,#2a0f2c55,transparent),#05070f}
+header{max-width:1200px;margin:0 auto;padding:16px 14px 0;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+h1{font-size:17px;letter-spacing:.14em;margin:0;color:var(--cy);text-shadow:0 0 12px #22e5ff66}h1 small{display:block;color:var(--mu);letter-spacing:.2em;font-size:10px;font-weight:400}
+#st{font:11px ui-monospace,Consolas,monospace;border:1px solid var(--gr);color:var(--gr);padding:4px 10px;border-radius:99px}
+.grid{display:grid;grid-template-columns:340px 1fr;gap:14px;max-width:1200px;margin:0 auto;padding:14px}@media(max-width:860px){.grid{grid-template-columns:1fr}}
+.right{display:grid;gap:14px;min-width:0}
+.panel{background:rgba(18,26,48,.55);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(34,229,255,.18);border-radius:14px;padding:14px;box-shadow:0 0 30px rgba(34,229,255,.05) inset}
+h2{margin:0 0 10px;font-size:11px;letter-spacing:.22em;color:var(--cy);text-transform:uppercase}
+label{display:block;margin:10px 0 3px;font-size:11px;letter-spacing:.1em;color:var(--mu);text-transform:uppercase}
+select{width:100%;padding:9px;background:#0b0f19;color:var(--tx);border:1px solid #22e5ff44;border-radius:8px;font-size:13px}select:disabled{opacity:.5}
+.info{margin-top:14px;padding:10px;border:1px dashed #22e5ff33;border-radius:8px;font:12px ui-monospace,Consolas,monospace;color:var(--mu)}.info b{color:var(--tx);font-weight:400}
+canvas{width:100%;display:block;border-radius:10px;background:#05070f;cursor:grab;touch-action:pan-y}
+.mt{margin:9px 0}.mt .r{display:flex;justify-content:space-between;font-size:12px;gap:8px}.mt .r span:first-child{letter-spacing:.12em;color:var(--mu);text-transform:uppercase}
+.bar{height:10px;background:#ffffff12;border-radius:6px;overflow:hidden;margin:4px 0 2px}
+.fill{height:100%;width:0;border-radius:6px;transition:width .7s cubic-bezier(.2,.8,.2,1),background .4s,box-shadow .4s}
+.fill.ok{background:var(--gr);box-shadow:0 0 10px var(--gr)}.fill.warn{background:var(--am);box-shadow:0 0 10px var(--am)}.fill.bad{background:var(--rd);box-shadow:0 0 12px var(--rd);animation:fl .6s infinite alternate}
+@keyframes fl{to{opacity:.35}}.mar{font:11px ui-monospace,Consolas,monospace;color:var(--mu)}
+.btn{width:100%;margin-top:10px;padding:13px;border:1px solid var(--cy);background:linear-gradient(90deg,#0a3a55,#0b5a72);color:#fff;font-weight:700;letter-spacing:.08em;border-radius:10px;cursor:pointer;font-size:14px}.btn:hover:not(:disabled){box-shadow:0 0 18px #22e5ff66}.btn:disabled{border-color:var(--rd);background:#2a0c10;color:#ff9a9a;cursor:not-allowed}
+#lg{height:230px;overflow-y:auto;font:12px/1.5 ui-monospace,Consolas,monospace}.e{padding:3px 0;border-bottom:1px solid #ffffff0d}.e b{color:var(--mu);font-weight:400;margin-right:6px}
+.ok{color:var(--gr)}.warn{color:var(--am)}.bad{color:var(--rd)}.inf{color:var(--cy)}
+</style></head><body>
+<header><h1>NASA SPACE APPS<small>MISSION DESIGN SIMULATOR</small></h1><div id="st">● MISSION CONTROL ONLINE</div></header>
+<div class="grid">
+<section class="panel"><h2>Mission Configuration</h2>
+<label>Destination Profile</label><select id="d"></select>
+<label>Scientific Payload</label><select id="pl"></select>
+<label>Power Architecture</label><select id="pw"></select>
+<label>Power Units Installed</label><select id="un"></select>
+<label>Launch Vehicle</label><select id="lv"></select>
+<div class="info" id="inf"></div></section>
+<div class="right">
+<section class="panel"><h2>Orbital Visualization · drag to rotate</h2><canvas id="cv"></canvas></section>
+<section class="panel"><h2>Systems Engineering Margins</h2>
+<div class="mt" id="mb"><div class="r"><span>Budget</span><span class="v"></span></div><div class="bar"><div class="fill"></div></div><div class="mar"></div></div>
+<div class="mt" id="mm"><div class="r"><span>Mass</span><span class="v"></span></div><div class="bar"><div class="fill"></div></div><div class="mar"></div></div>
+<div class="mt" id="mp"><div class="r"><span>Power</span><span class="v"></span></div><div class="bar"><div class="fill"></div></div><div class="mar"></div></div>
+<button class="btn" id="go"></button></section>
+<section class="panel"><h2>Telemetry Event Stream</h2><div id="lg"></div></section></div></div>
+<script>
+const $=id=>document.getElementById(id),clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),lerp=(a,b,t)=>a+(b-a)*t,ease=t=>t*t*(3-2*t),wait=ms=>new Promise(r=>setTimeout(r,ms));
+const DEST={leo:{n:"Low Earth Orbit (LEO)",b:50,p:500,m:1000,v:1},lunar:{n:"Lunar Transfer Orbit",b:150,p:600,m:800,v:1.6},mars:{n:"Mars Deep Space Exploration",b:300,p:800,m:500,v:2.5}};
+const PAY={tel:{n:"Telemetry Array",c:20,m:100,w:100,v:30},opt:{n:"High-Res Optical Imager",c:60,m:250,w:250,v:65},sar:{n:"Synthetic Aperture Radar",c:120,m:400,w:500,v:100}};
+const PWR={sol:{n:"Advanced Solar Panels",c:15,m:150,g:300},rtg:{n:"Nuclear RTG",c:90,m:80,g:600}};
+const LV={lt:{n:"Light Lift Rocket",c:30,cap:600},hv:{n:"Heavy Lift Rocket",c:90,cap:1500}};
+const fill=(id,o,f)=>$(id).innerHTML=Object.keys(o).map(k=>`<option value="${k}">${o[k].n} — ${f(o[k])}</option>`).join('');
+fill('d',DEST,o=>`$${o.b}M`);fill('pl',PAY,o=>`$${o.c}M · ${o.m}kg · ${o.w}W`);fill('pw',PWR,o=>`$${o.c}M · ${o.m}kg · +${o.g}W`);fill('lv',LV,o=>`${o.cap}kg cap`);
+$('un').innerHTML=[1,2,3,4].map(n=>`<option value="${n}">×${n} unit${n>1?'s':''}</option>`).join('');
+const SC={leo:{n:"LOW EARTH ORBIT",z:1.5,c:[0,0,0]},lunar:{n:"LUNAR ORBIT",z:.85,c:[0,0,0]},mars:{n:"MARS SURFACE MISSION",z:.8,c:[-90,0,0]}};
+let sc='leo',busy=false,done=false,sim=false,pT=0,pd=0,dT=0,dep=0,ex=0,burn=false,safe=false,lost=false,hz=null,MET=-30,ph='STANDBY',rtg=false,T=0,yaw=.6,pit=.45,drag=false,last=0,cw=600,ch=360,trail=[];
+const fmt=s=>{const a=Math.abs(Math.round(s)),p=n=>String(n).padStart(2,'0');return(s<0?'T-':'T+')+p(a/3600|0)+':'+p(a/60%60|0)+':'+p(a%60)};
+function calc(){const D=DEST[$('d').value],P=PAY[$('pl').value],W=PWR[$('pw').value],L=LV[$('lv').value],u=+$('un').value;
+const cost=P.c+W.c*u,mass=P.m+W.m*u,req=D.p+P.w,gen=W.g*u,ml=Math.min(D.m,L.cap),f=[];
+if(cost>D.b)f.push(`BUDGET OVERRUN: $${cost}M > $${D.b}M`);
+if(mass>L.cap)f.push(`MASS EXCEEDS LAUNCH CAPACITY: ${mass}kg > ${L.cap}kg`);
+if(mass>D.m)f.push(`MASS EXCEEDS DESTINATION ALLOWANCE: ${mass}kg > ${D.m}kg`);
+if(req>gen)f.push(`POWER DEFICIT: ${req}W required > ${gen}W generated`);
+return{D,P,W,L,u,cost,mass,req,gen,ml,f}}
+function setM(id,v,max,txt,mar){const e=$(id),r=v/max,f=e.querySelector('.fill');f.style.width=clamp(r*100,0,100)+'%';f.className='fill '+(r>1?'bad':r>.85?'warn':'ok');e.querySelector('.v').textContent=txt;e.querySelector('.mar').textContent=mar}
+function upd(){const c=calc();sc=$('d').value;rtg=$('pw').value==='rtg';trail=[];
+setM('mb',c.cost,c.D.b,`$${c.cost}M / $${c.D.b}M`,c.cost<=c.D.b?`Margin +$${c.D.b-c.cost}M`:`DEFICIT −$${c.cost-c.D.b}M`);
+setM('mm',c.mass,c.ml,`${c.mass}kg / ${c.ml}kg`,c.mass<=c.ml?`Margin +${c.ml-c.mass}kg (limit = min of vehicle ${c.L.cap}kg, allowance ${c.D.m}kg)`:`DEFICIT −${c.mass-c.ml}kg`);
+setM('mp',c.req,c.gen,`${c.req}W req / ${c.gen}W gen`,c.req<=c.gen?`Margin +${c.gen-c.req}W (base load ${c.D.p}W + payload ${c.P.w}W)`:`DEFICIT −${c.req-c.gen}W`);
+$('inf').innerHTML=`Base power penalty: <b>${c.D.p} W</b><br>Payload mass allowance: <b>${c.D.m} kg</b><br>Mission budget: <b>$${c.D.b}M</b> (spacecraft hardware)<br>Launch services: <b>$${c.L.c}M</b> (billed to launch provider)<br>Science value: <b>${c.P.v} × ${c.D.v}</b>`;
+if(!busy&&!done){const b=$('go');b.disabled=c.f.length>0;b.textContent=c.f.length?'⛔ '+c.f[0]:'▶ LAUNCH SIMULATION'}}
+const ln=(m,cl)=>{const e=document.createElement('div');e.className='e '+(cl||'');e.innerHTML=`<b>${fmt(MET)}</b>${m}`;$('lg').appendChild(e);$('lg').scrollTop=$('lg').scrollHeight};
+const lock=b=>['d','pl','pw','un','lv'].forEach(i=>$(i).disabled=b);
+function reset(){busy=done=sim=burn=safe=lost=false;pT=pd=dT=dep=ex=0;hz=null;ph='STANDBY';MET=-30;trail=[];lock(false);$('lg').innerHTML='';$('st').textContent='● MISSION CONTROL ONLINE';$('st').style.cssText='';ln('Mission Control online. Configure the spacecraft, verify margins, then launch.','inf');upd()}
+async function launch(){const c=calc();if(busy||c.f.length)return;busy=true;lock(true);$('lg').innerHTML='';sim=true;pT=pd=dT=dep=ex=0;$('go').disabled=true;$('go').textContent='MISSION IN PROGRESS…';$('st').textContent='● MISSION ACTIVE';$('st').style.cssText='color:#ffb020;border-color:#ffb020';
+let duty=1,integ=1,gen=c.gen;const key=$('d').value;
+const go=async(met,m,cl,p,o={})=>{MET=met;if(p!=null)pT=p;if('b'in o)burn=o.b;if(o.ph)ph=o.ph;ln(m,cl);await wait(o.w||1250)};
+const CR={leo:["Circularizing at 400 km. Perigee-raise burn nominal.","Orbital velocity 7.67 km/s. Ground track acquired.","Star trackers locked. Attitude control nominal."],
+lunar:["Trans-Lunar Injection burn complete. Δv 3.1 km/s.","Coasting to the Moon. Midcourse correction TCM-1 executed.","Lunar approach: Moon within 60,000 km."],
+mars:["Trans-Mars Injection burn complete. Earth escape achieved.","Interplanetary cruise at 24 km/s. DSN link nominal.","Midcourse trajectory correction TCM-2 executed."]}[key];
+await go(-30,`Pre-launch checks complete. ${c.L.n} GO — stack mass ${c.mass}kg, ${c.u}× ${c.W.n}.`,'inf',0,{ph:'PRE-LAUNCH'});
+await go(0,'Main engine ignition. LIFTOFF! Vehicle clears the tower.','ok',.03,{b:true,ph:'ASCENT'});
+await go(72,'Max-Q passed. Structural loads within limits.','',.07);
+await go(155,'Main engine cutoff. Stage separation confirmed.','ok',.11);
+await go(520,'Fairing jettison. Spacecraft separation. Orbit insertion complete.','ok',.15,{b:false,ph:'ORBIT'});
+await go(1500,rtg?'RTG fuel cask activated — steady '+c.gen+'W thermoelectric output. Boom and comm arrays deployed.':'Solar arrays sweeping open and tracking the Sun. '+c.gen+'W generation online.','ok',null,{ph:'DEPLOYMENT'});dT=1;
+await go(2400,CR[0],'inf',.3,{b:key!=='leo',ph:key==='leo'?'ORBITAL OPS':'TRANSFER'});
+await go(5200,CR[1],'',.42,{b:false});
+const an=['flare','micro','blackout'][Math.random()*3|0];MET=9000;ph='ANOMALY';pT=.55;
+if(an==='flare'){ln('⚠ ANOMALY: Minor solar flare (M-class). Proton flux rising.','warn');hz={t:an,s:T};await wait(1500);
+ if(rtg){MET=9060;ln(`RTG output independent of solar flux — efficiency unchanged (${gen}W).`,'ok')}
+ else{gen=Math.round(gen*.85);duty=Math.min(1,gen/c.req);MET=9060;ln(`Solar array efficiency −15% → ${gen}W available.`,'warn');await wait(1100);
+  ln(gen<c.req?`Power deficit ${c.req-gen}W. Payload duty cycle throttled to ${Math.round(duty*100)}%.`:'Power margin absorbed the loss. Payload remains at 100%.',gen<c.req?'bad':'ok')}}
+else if(an==='micro'){ln('⚠ ANOMALY: Micrometeorite strike on bus structure. 3.2 g impulse recorded.','bad');hz={t:an,s:T};integ=.94;await wait(1500);
+ safe=true;MET=9040;ln('Structural integrity 94%. FDIR commanded SAFE MODE: payload off, Sun-pointing.','warn');await wait(2200);
+ safe=false;MET=9900;ln('Ground inspection complete. Thrusters nominal. Exiting safe mode.','ok')}
+else{ln('⚠ ANOMALY: Deep Space Comm Blackout. Carrier lock lost.','bad');hz={t:an,s:T};lost=true;await wait(1800);
+ MET=9100;ln('Autonomous sequencing active. Telemetry buffered to solid-state recorder.','warn');await wait(1800);
+ lost=false;MET=9600;ln('Link re-acquired via Deep Space Network. Buffered data downlinked.','ok')}
+await wait(900);
+await go(12000,CR[2],'inf',.7,{ph:'APPROACH'});
+await go(14000,key==='leo'?'Final orbit trim. Payload bay doors open.':key==='lunar'?'Lunar Orbit Insertion burn started.':'Mars Orbit Insertion burn started. Entry, descent & landing sequence armed.','warn',.88,{b:true,ph:key==='mars'?'LANDING':'INSERTION'});
+await go(14600,key==='leo'?'Orbit stable. Payload commissioning begins.':key==='lunar'?'100 km circular lunar orbit achieved.':'Touchdown confirmed. Landing site stable.','ok',1,{b:false,ph:'SCIENCE OPS'});
+const sci=Math.round(c.P.v*c.D.v*duty*integ),th=Math.round((c.D.b-c.cost)/c.D.b*25),tot=sci+th,pct=tot/(100*c.D.v+25)*100,gr=pct>=80?'A':pct>=55?'B':pct>=35?'C':'D';
+await go(16000,`${c.P.n} online. Science yield ${sci}/${Math.round(100*c.D.v)} (duty ${Math.round(duty*100)}%, structure ${Math.round(integ*100)}%).`,'ok');
+await go(17000,`Budget thrift bonus +${th}. Total score ${tot} — Grade ${gr}.`,'inf');
+await go(18000,'★ MISSION SUCCESS ★ All primary objectives met.','ok',null,{ph:'MISSION COMPLETE'});
+$('st').textContent='● MISSION SUCCESS';$('st').style.cssText='';busy=false;done=true;$('go').disabled=false;$('go').textContent='↺ NEW MISSION'}
+$('go').onclick=()=>done?reset():launch();['d','pl','pw','un','lv'].forEach(i=>$(i).onchange=upd);
+// ---------- 3D engine ----------
+const cv=$('cv'),cx=cv.getContext('2d'),PT=[],ST=Array.from({length:150},()=>({x:Math.random(),y:Math.random(),r:Math.random()*1.3+.3,p:Math.random()*6}));
+function size(){const r=cv.parentElement.getBoundingClientRect(),d=Math.min(devicePixelRatio||1,2);cw=Math.max(240,r.width-28);ch=Math.max(260,Math.min(420,cw*.62));cv.style.height=ch+'px';cv.width=cw*d;cv.height=ch*d;cx.setTransform(d,0,0,d,0,0)}
+addEventListener('resize',size);
+cv.onpointerdown=e=>{drag=true;cv.setPointerCapture(e.pointerId);cv.style.cursor='grabbing'};cv.onpointerup=()=>{drag=false;cv.style.cursor='grab'};
+cv.onpointermove=e=>{if(!drag)return;yaw+=e.movementX*.008;if(e.pointerType==='mouse')pit=clamp(pit+e.movementY*.006,-.2,1.2)};
+function proj(p){const c=SC[sc].c,x=p[0]-c[0],y=p[1]-c[1],z=p[2]-c[2],cy=Math.cos(yaw),sy=Math.sin(yaw),cp=Math.cos(pit),sp=Math.sin(pit),x1=x*cy+z*sy,z1=-x*sy+z*cy,y1=y*cp-z1*sp,z2=y*sp+z1*cp,s=700/(700+z2)*SC[sc].z*Math.min(1,cw/640);return{x:cw/2+x1*s,y:ch/2-y1*s,s,z:z2}}
+const orb=(c,r,i,a)=>[c[0]+r*Math.cos(a),c[1]+r*Math.sin(a)*Math.sin(i),c[2]+r*Math.sin(a)*Math.cos(i)],mix=(a,b,t)=>a.map((v,i)=>lerp(v,b[i],t));
+const moonP=()=>orb([0,0,0],260,.25,T*.25),bez=u=>{const a=[-330,0,0],b=[-90,170,70],c=[20,0,0];return[0,1,2].map(i=>(1-u)*(1-u)*a[i]+2*(1-u)*u*b[i]+u*u*c[i])};
+function craftPos(){if(sc==='leo')return orb([0,0,0],sim?lerp(104,150,ease(clamp(pd/.15,0,1))):150,.5,T*1.6);
+if(sc==='lunar'){const o=orb(moonP(),32,.9,T*1.8);return sim?mix(orb([0,0,0],58,.5,T*2),o,ease(clamp(pd/.55,0,1))):o}
+if(!sim)return bez((T*.1)%1);if(pd<.7)return bez(ease(pd/.7));const f=(pd-.7)/.3;return orb([150,0,0],lerp(130,71,ease(f)),.6,Math.PI+f*14+ex)}
+function line(pts,cz){cx.beginPath();let pen=false;for(const p of pts){const a=proj(p);if(cz===undefined||a.z<cz){pen?cx.lineTo(a.x,a.y):cx.moveTo(a.x,a.y);pen=true}else pen=false}cx.stroke()}
+function sphere(c,R,col,gl,spin){const q=proj(c),r=R*q.s;let g=cx.createRadialGradient(q.x,q.y,r*.9,q.x,q.y,r*1.3);g.addColorStop(0,gl);g.addColorStop(1,'transparent');cx.fillStyle=g;cx.beginPath();cx.arc(q.x,q.y,r*1.3,0,7);cx.fill();
+g=cx.createRadialGradient(q.x-r*.4,q.y-r*.4,r*.1,q.x,q.y,r);g.addColorStop(0,col[0]);g.addColorStop(1,col[1]);cx.fillStyle=g;cx.beginPath();cx.arc(q.x,q.y,r,0,7);cx.fill();
+cx.strokeStyle=col[2];cx.lineWidth=.7;cx.setLineDash([]);const P=(la,lo)=>[c[0]+R*Math.cos(la)*Math.cos(lo+spin),c[1]+R*Math.sin(la),c[2]+R*Math.cos(la)*Math.sin(lo+spin)];
+for(let la=-60;la<=60;la+=30){const a=[];for(let lo=0;lo<=6.29;lo+=.26)a.push(P(la*Math.PI/180,lo));line(a,q.z)}
+for(let lo=0;lo<6.28;lo+=.52){const a=[];for(let la=-1.57;la<=1.58;la+=.17)a.push(P(la,lo));line(a,q.z)}}
+function craft(a){const u=Math.max(1,a.s*1.15),L=22*u;cx.save();cx.translate(a.x,a.y);cx.shadowColor='#22e5ff';cx.shadowBlur=8;
+if(!rtg)for(const s of[-1,1]){cx.save();cx.translate(s*4*u,0);cx.rotate(s*(1-dep)*1.45);cx.fillStyle='#2b6cff';cx.strokeStyle='#9cc4ff';cx.lineWidth=.6;cx.fillRect(s>0?0:-L,-2.2*u,L,4.4*u);cx.strokeRect(s>0?0:-L,-2.2*u,L,4.4*u);cx.restore()}
+else{cx.fillStyle='#ff8a3d';cx.shadowColor='#ff8a3d';cx.fillRect(-1.3*u,5*u,2.6*u,8*u);cx.fillStyle='#9aa7c7';cx.fillRect(-4*u-L*.3*dep,-.6*u,L*.3*dep,1.2*u);cx.fillRect(4*u,-.6*u,L*.3*dep,1.2*u)}
+cx.shadowBlur=0;cx.fillStyle='#e6eeff';cx.fillRect(-4*u,-5*u,8*u,10*u);cx.fillStyle='#22e5ff';cx.beginPath();cx.arc(0,-6*u,2.6*u,Math.PI,0);cx.fill();cx.restore()}
+function em(p,n,sp,col,life,d){const r=()=>(Math.random()-.5)*2;for(let i=0;i<n;i++){const s=sp*(.5+Math.random()*.5);PT.push({p:p.slice(),v:d?[d[0]*s+r()*sp*.25,d[1]*s+r()*sp*.25,d[2]*s+r()*sp*.25]:[r()*s,r()*s,r()*s],l:life,m:life,c:col})}}
+const nrm=v=>{const m=Math.hypot(...v)||1;return v.map(x=>x/m)};
+function frame(ts){const dt=Math.min(.05,(ts-last)/1000||0);last=ts;T+=dt;if(!drag)yaw+=dt*.12;pd+=(pT-pd)*Math.min(1,dt*1.5);if(dT)dep=Math.min(1,dep+dt*.35);if(sim&&pd>.995)ex+=dt*1.1;
+cx.clearRect(0,0,cw,ch);cx.fillStyle='#05070f';cx.fillRect(0,0,cw,ch);
+for(const s of ST){cx.globalAlpha=.4+.4*Math.sin(T*2+s.p);cx.fillStyle='#cfe4ff';cx.fillRect(((s.x*cw+yaw*30*s.r)%cw+cw)%cw,s.y*ch,s.r,s.r)}cx.globalAlpha=1;
+const cp=craftPos(),q=proj(cp),pv=trail.length?trail[trail.length-1]:cp;trail.push(cp);if(trail.length>60)trail.shift();
+cx.setLineDash([4,7]);cx.lineWidth=1;
+if(sc==='leo'){cx.strokeStyle='#22e5ff44';line(Array.from({length:65},(_,i)=>orb([0,0,0],150,.5,i*.0982)))}
+if(sc==='lunar'){cx.strokeStyle='#ffffff2a';line(Array.from({length:97},(_,i)=>orb([0,0,0],260,.25,i*.0654)))}
+if(sc==='mars'){cx.strokeStyle='#ffb02055';line(Array.from({length:41},(_,i)=>bez(i/40)))}
+cx.setLineDash([]);for(let i=1;i<trail.length;i++){cx.strokeStyle=`rgba(34,229,255,${i/trail.length*.5})`;cx.beginPath();const a=proj(trail[i-1]),b=proj(trail[i]);cx.moveTo(a.x,a.y);cx.lineTo(b.x,b.y);cx.stroke()}
+const it=[{z:q.z,f:()=>craft(q)}],E=[[0,0,0]];
+if(sc==='leo')it.push({z:proj([0,0,0]).z,f:()=>sphere([0,0,0],100,['#3d8bff','#0a2a66','#22e5ff66'],'#2a7bff55',T*.15)});
+if(sc==='lunar'){const m=moonP();it.push({z:0,f:()=>sphere([0,0,0],50,['#3d8bff','#0a2a66','#22e5ff66'],'#2a7bff55',T*.15)},{z:proj(m).z,f:()=>sphere(m,14,['#d8dce6','#6c7080','#ffffff44'],'#ffffff22',T*.1)})}
+if(sc==='mars'){it.push({z:proj([150,0,0]).z,f:()=>sphere([150,0,0],70,['#ff8a4c','#6e2210','#ffd0a044'],'#ff6a2a55',T*.1)},{z:proj([-330,0,0]).z,f:()=>sphere([-330,0,0],16,['#3d8bff','#0a2a66','#22e5ff66'],'#2a7bff55',T*.2)})}
+it.sort((a,b)=>b.z-a.z).forEach(o=>o.f());
+// particles & hazards
+const v=[cp[0]-pv[0],cp[1]-pv[1],cp[2]-pv[2]];
+if(burn&&sim)em(cp,3,70,Math.random()<.5?'#ff9a2a':'#ffe08a',.7,nrm(v).map(x=>-x));
+if(sim&&dT&&dep<1)em(cp,1,40,'#22e5ff',.6);
+if(hz){const t=T-hz.s;if(t>6)hz=null;else if(hz.t==='flare'){const s=[cp[0]-500,cp[1]+250,cp[2]+150];em(s,4,0,'#ffb020',1.2,null);for(let i=PT.length-4;i<PT.length;i++){const d=nrm([cp[0]-PT[i].p[0],cp[1]-PT[i].p[1],cp[2]-PT[i].p[2]]);PT[i].v=d.map(x=>x*520)}cx.fillStyle=`rgba(255,176,32,${.1+.06*Math.sin(T*10)})`;cx.fillRect(0,0,cw,ch)}
+ else if(hz.t==='micro'){if(t<1.4){const s=[cp[0]+(Math.random()-.5)*500,cp[1]+(Math.random()-.5)*300,cp[2]+(Math.random()-.5)*500];em(s,1,0,'#b8bfd0',1.2,null);const d=nrm([cp[0]-s[0],cp[1]-s[1],cp[2]-s[2]]);PT[PT.length-1].v=d.map(x=>x*320)}else if(!hz.b){hz.b=1;em(cp,50,110,'#ffd9a8',1)}}
+ else if(hz.t==='blackout'){cx.strokeStyle=`rgba(255,59,59,${.8-(t%1)*.8})`;cx.lineWidth=2;cx.beginPath();cx.arc(q.x,q.y,20+(t%1)*90,0,7);cx.stroke()}}
+cx.globalCompositeOperation='lighter';for(let i=PT.length-1;i>=0;i--){const p=PT[i];p.l-=dt;if(p.l<=0){PT.splice(i,1);continue}p.p[0]+=p.v[0]*dt;p.p[1]+=p.v[1]*dt;p.p[2]+=p.v[2]*dt;const a=proj(p.p);cx.globalAlpha=p.l/p.m;cx.fillStyle=p.c;cx.beginPath();cx.arc(a.x,a.y,Math.max(.8,2.2*a.s*p.l/p.m),0,7);cx.fill()}
+cx.globalAlpha=1;cx.globalCompositeOperation='source-over';
+if(lost){cx.fillStyle='rgba(255,59,59,.12)';for(let i=0;i<7;i++)cx.fillRect(0,Math.random()*ch,cw,1.5);cx.fillStyle='#ff3b3b';cx.font='bold 14px ui-monospace,monospace';cx.textAlign='center';cx.fillText('▲ LINK LOST — NO SIGNAL',cw/2,34)}
+if(safe&&Math.sin(T*8)>-.3){cx.fillStyle='#ffb020';cx.font='bold 14px ui-monospace,monospace';cx.textAlign='center';cx.fillText('⚠ SAFE MODE — PAYLOAD OFFLINE',cw/2,34)}
+cx.textAlign='left';cx.font='11px ui-monospace,Consolas,monospace';cx.fillStyle='#22e5ff';cx.fillText(SC[sc].n,10,18);cx.fillStyle='#7d8bb0';cx.fillText('PHASE: '+ph,10,ch-10);cx.textAlign='right';cx.fillText(fmt(MET),cw-10,18);cx.fillText(Math.round(pd*100)+'% PROFILE',cw-10,ch-10);
+requestAnimationFrame(frame)}
+size();reset();requestAnimationFrame(frame);
+</script></body></html>
